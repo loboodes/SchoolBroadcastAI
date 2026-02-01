@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مخطط الدروس الذكي | Lobodes Ultimate</title>
+    <title>مخطط الدروس الذكي | Lobodes Pro</title>
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -20,17 +21,18 @@
             background: white; border-radius: 20px; padding: 35px;
             box-shadow: 0 15px 35px rgba(0,0,0,0.08); margin-top: -40px;
         }
-        .btn-gold { background-color: var(--gold-accent); color: var(--primary-green); font-weight: bold; border: none; }
+        .btn-gold { background-color: var(--gold-accent); color: var(--primary-green); font-weight: bold; border: none; transition: 0.3s; }
+        .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4); }
         .result-container { background: white; padding: 40px; border-radius: 15px; border: 1px solid #e0e0e0; margin-top: 30px; position: relative; }
         .pdf-header { border-bottom: 2px solid var(--gold-accent); padding-bottom: 15px; margin-bottom: 25px; }
-        #debugArea { font-size: 0.8rem; background: #333; color: #0f0; padding: 15px; border-radius: 10px; margin-top: 20px; text-align: left; direction: ltr; display: none; }
+        #statusMsg { font-size: 0.9rem; margin-top: 10px; color: #666; }
     </style>
 </head>
 <body>
 
 <header class="main-header text-center">
     <h1 class="fw-bold">✨ مخطط الدروس الذكي Pro</h1>
-    <p class="lead text-white-50">الجيل القادم من التحضير التربوي</p>
+    <p class="lead text-white-50">الجيل القادم من التحضير التربوي (Gemini 2.0)</p>
 </header>
 
 <div class="container mb-5">
@@ -40,20 +42,18 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-bold">المادة الدراسية</label>
-                        <input type="text" id="subjectInput" class="form-control" placeholder="مثلاً: علوم">
+                        <input type="text" id="subjectInput" class="form-control" placeholder="مثلاً: علوم، لغتي..">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold">اسم الدرس</label>
-                        <input type="text" id="lessonInput" class="form-control" placeholder="مثلاً: البراكين">
+                        <input type="text" id="lessonInput" class="form-control" placeholder="مثلاً: التفاعلات الكيميائية">
                     </div>
                     <div class="col-12 mt-4">
-                        <button onclick="startUltimateGeneration()" id="mainBtn" class="btn btn-gold btn-lg w-100 shadow">توليد التحضير الاحترافي</button>
-                        <div id="statusMsg" class="text-center mt-3 text-muted"></div>
+                        <button onclick="startGeneration()" id="mainBtn" class="btn btn-gold btn-lg w-100 shadow">توليد التحضير الاحترافي</button>
+                        <div id="statusMsg" class="text-center"></div>
                     </div>
                 </div>
             </div>
-
-            <div id="debugArea"></div>
 
             <div id="outputWrapper" class="d-none">
                 <div id="printablePlan" class="result-container">
@@ -73,49 +73,47 @@
 </div>
 
 <script type="module">
+    // مفتاحك
     const API_KEY = "AIzaSyA4JrK-4MnPur1nj9c5Se0gbQhyw_gSK18";
     
-    // قائمة الموديلات التي سنجربها (الأحدث ثم الأقدم ثم المستقر)
+    // استخدام الموديلات التي ظهرت في التشخيص (Gemini 2.0)
     const MODELS = [
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`,
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${API_KEY}`,
-        `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${API_KEY}`, 
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${API_KEY}`
     ];
 
-    window.startUltimateGeneration = async () => {
+    window.startGeneration = async () => {
         const subject = document.getElementById('subjectInput').value;
         const lesson = document.getElementById('lessonInput').value;
         const btn = document.getElementById('mainBtn');
         const statusDiv = document.getElementById('statusMsg');
-        const debugArea = document.getElementById('debugArea');
 
         if (!subject || !lesson) return alert("فضلاً أدخل البيانات كاملة");
 
         btn.disabled = true;
-        debugArea.style.display = 'none';
+        btn.innerText = "جاري الاتصال بالمحرك الذكي...";
+        statusDiv.innerText = "";
         
-        const promptText = `بصفتك خبيراً تربوياً، صمم تحضير درس احترافي لمادة (${subject}) عنوانه (${lesson}) يشمل: الأهداف السلوكية، الاستراتيجيات، والوسائل التعليمية.`;
+        const promptText = `بصفتك خبيراً تربوياً، صمم تحضير درس احترافي لمادة (${subject}) عنوانه (${lesson}) يشمل:
+        1. الأهداف السلوكية (أن يكون الطالب قادراً على...).
+        2. الوسائل التعليمية والتقنيات.
+        3. استراتيجيات التدريس الحديثة.
+        4. إجراءات سير الدرس (التمهيد، العرض، الغلق).
+        5. أساليب التقويم.`;
 
         let success = false;
 
-        // حلقة المحاولة عبر الموديلات المختلفة
+        // المحاولة باستخدام الموديلات الجديدة المتاحة لك
         for (const url of MODELS) {
             try {
-                // استخراج اسم الموديل للتوضيح
-                let modelName = "Unknown";
-                if(url.includes("/models/")) modelName = url.split('/models/')[1].split(':')[0];
-                
-                statusDiv.innerText = `جاري المحاولة عبر المحرك: ${modelName}...`;
-
                 const response = await fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
                 });
 
-                if (!response.ok) throw new Error("Not Found");
+                if (!response.ok) throw new Error("Not compatible");
 
                 const data = await response.json();
                 const text = data.candidates[0].content.parts[0].text;
@@ -124,54 +122,38 @@
                 document.getElementById('planTitle').innerText = `تحضير درس: ${lesson}`;
                 document.getElementById('contentArea').innerText = text;
                 document.getElementById('outputWrapper').classList.remove('d-none');
+                
+                // سكرول للنتيجة
                 window.scrollTo({ top: document.getElementById('outputWrapper').offsetTop - 20, behavior: 'smooth' });
                 
                 success = true;
-                statusDiv.innerText = "تم التوليد بنجاح! ✅";
-                break; 
+                break; // التوقف عند النجاح
 
             } catch (e) {
-                console.warn(`Failed: ${url}`);
-                continue; 
+                console.warn("Retrying next model...");
+                continue;
             }
         }
 
-        // إذا فشلت كل المحاولات، نقوم بالتشخيص
         if (!success) {
-            statusDiv.innerHTML = "<span class='text-danger'>فشلت المحاولات. جاري تشخيص المفتاح...</span>";
-            await diagnoseKey();
+            statusDiv.innerHTML = "<span class='text-danger'>حدث خطأ غير متوقع. يرجى المحاولة لاحقاً.</span>";
         }
 
         btn.disabled = false;
         if(!success) btn.innerText = "حاول مرة أخرى";
+        else btn.innerText = "توليد تحضير جديد";
     };
-
-    // دالة التشخيص: تسأل جوجل "ماذا لديك؟"
-    async function diagnoseKey() {
-        const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`;
-        const debugArea = document.getElementById('debugArea');
-        
-        try {
-            const response = await fetch(listUrl);
-            const data = await response.json();
-            
-            if (data.models) {
-                let availableModels = data.models.map(m => m.name).join('<br>');
-                debugArea.innerHTML = `<strong>الموديلات المتاحة لمفتاحك هي:</strong><br>${availableModels}<br><br>الرجاء تصوير هذه الشاشة وإرسالها للمطور.`;
-                debugArea.style.display = 'block';
-            } else {
-                debugArea.innerHTML = `خطأ في المفتاح: ${JSON.stringify(data)}`;
-                debugArea.style.display = 'block';
-            }
-        } catch (e) {
-            debugArea.innerHTML = `فشل الاتصال التشخيصي: ${e.message}`;
-            debugArea.style.display = 'block';
-        }
-    }
 
     window.downloadAsPDF = () => {
         const element = document.getElementById('printablePlan');
-        html2pdf().from(element).save(`تحضير_${document.getElementById('lessonInput').value}_Lobodes.pdf`);
+        const opt = {
+            margin: 10,
+            filename: `تحضير_${document.getElementById('lessonInput').value}_Lobodes.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
     };
 </script>
 </body>
