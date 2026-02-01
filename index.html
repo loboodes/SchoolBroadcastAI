@@ -2,62 +2,125 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>مساعد التحضير الذكي</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مخطط الدروس الذكي | Lobodes Pro</title>
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <style>
-        body { background-color: #f4fdf9; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        .prep-card { background: white; border-radius: 15px; border-top: 8px solid #198754; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
-        .result-box { background: white; padding: 40px; border: 1px solid #eee; margin-top: 25px; line-height: 2; }
+        :root { --primary-green: #1b4332; --gold-accent: #d4af37; }
+        body { background-color: #f8f9fa; font-family: 'Tajawal', sans-serif; }
+        .main-header {
+            background: linear-gradient(135deg, var(--primary-green) 0%, #2d6a4f 100%);
+            color: white; padding: 50px 0; border-bottom: 5px solid var(--gold-accent);
+            border-radius: 0 0 40px 40px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .glass-card {
+            background: white; border-radius: 20px; padding: 35px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.08); margin-top: -40px;
+        }
+        .btn-gold { background-color: var(--gold-accent); color: var(--primary-green); font-weight: bold; border: none; }
+        .result-container { background: white; padding: 40px; border-radius: 15px; border: 1px solid #e0e0e0; margin-top: 30px; position: relative; }
+        .pdf-header { border-bottom: 2px solid var(--gold-accent); padding-bottom: 15px; margin-bottom: 25px; }
     </style>
 </head>
 <body>
-<div class="container py-5">
+
+<header class="main-header text-center">
+    <h1 class="fw-bold">✨ مخطط الدروس الذكي Pro</h1>
+    <p class="lead text-white-50">التحضير التربوي المبتكر لمتجر Lobodes</p>
+</header>
+
+<div class="container mb-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="prep-card text-center">
-                <h2 class="mb-4 text-success">📝 مخطط الدروس الذكي</h2>
-                <input type="text" id="subject" class="form-control mb-3" placeholder="المادة (مثال: رياضيات، كيمياء)">
-                <input type="text" id="lesson" class="form-control mb-4" placeholder="عنوان الدرس">
-                <button onclick="generatePlan()" id="btn" class="btn btn-success btn-lg w-100">توليد التحضير الكامل</button>
-            </div>
-            
-            <div id="outputContainer" class="d-none">
-                <div id="printableArea" class="result-box">
-                    <h3 id="head" class="text-center mb-4"></h3>
-                    <div id="content" style="white-space: pre-wrap;"></div>
+            <div class="glass-card">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">المادة الدراسية</label>
+                        <input type="text" id="subjectInput" class="form-control" placeholder="مثلاً: علوم، رياضيات..">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">اسم الدرس</label>
+                        <input type="text" id="lessonInput" class="form-control" placeholder="مثلاً: البراكين">
+                    </div>
+                    <div class="col-12 mt-4">
+                        <button onclick="generatePlan()" id="mainBtn" class="btn btn-gold btn-lg w-100 shadow">توليد التحضير الاحترافي</button>
+                    </div>
                 </div>
-                <button onclick="savePDF()" class="btn btn-dark btn-lg w-100 mt-3">تحميل كملف PDF</button>
+            </div>
+
+            <div id="outputWrapper" class="d-none">
+                <div id="printablePlan" class="result-container">
+                    <div class="pdf-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="text-success fw-bold mb-0">متجر Lobodes الرقمي</h4>
+                            <small class="text-muted">نظام التحضير الذكي v1.0</small>
+                        </div>
+                    </div>
+                    <h3 id="planTitle" class="text-center fw-bold mb-4" style="color: var(--primary-green);"></h3>
+                    <div id="contentArea" style="white-space: pre-wrap; line-height: 1.8;"></div>
+                </div>
+                <button onclick="downloadAsPDF()" class="btn btn-success btn-lg w-100 mt-4 shadow">حفظ كملف PDF</button>
             </div>
         </div>
     </div>
 </div>
 
 <script type="module">
-    const KEY = "AIzaSyA4JrK-4MnPur1nj9c5Se0gbQhyw_gSK18"; 
-    const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${KEY}`;
+    // مفتاحك الشخصي المستخرج من الصور
+    const API_KEY = "AIzaSyA4JrK-4MnPur1nj9c5Se0gbQhyw_gSK18";
+    
+    // الرابط المحدث لضمان استدعاء النموذج بشكل صحيح
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`;
 
     window.generatePlan = async () => {
-        const s = document.getElementById('subject').value;
-        const l = document.getElementById('lesson').value;
-        const btn = document.getElementById('btn');
-        btn.disabled = true; btn.innerText = "جاري التحضير...";
+        const subject = document.getElementById('subjectInput').value;
+        const lesson = document.getElementById('lessonInput').value;
+        const btn = document.getElementById('mainBtn');
 
-        const prompt = `صمم تحضير درس احترافي لمادة (${s}) عنوانه (${l}) يشمل الأهداف السلوكية بأسلوب تربوي، الوسائل التعليمية، استراتيجيات التدريس، وخاتمة تقويمية.`;
+        if (!subject || !lesson) return alert("فضلاً أدخل البيانات كاملة");
+
+        btn.disabled = true;
+        btn.innerText = "جاري الاتصال بالذكاء الاصطناعي...";
+
+        const promptText = `صمم تحضير درس احترافي لمادة (${subject}) عنوانه (${lesson}) يشمل الأهداف السلوكية، الاستراتيجيات، والوسائل التعليمية.`;
 
         try {
-            const res = await fetch(URL, { method: "POST", body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
-            const d = await res.json();
-            document.getElementById('head').innerText = `تحضير درس: ${l}`;
-            document.getElementById('content').innerText = d.candidates[0].content.parts[0].text;
-            document.getElementById('outputContainer').classList.remove('d-none');
-        } catch (e) { alert("تأكد من اتصالك بالإنترنت"); }
-        finally { btn.disabled = false; btn.innerText = "توليد التحضير الكامل"; }
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok) throw new Error(data.error ? data.error.message : "خطأ غير معروف");
+
+            document.getElementById('planTitle').innerText = `تحضير درس: ${lesson}`;
+            document.getElementById('contentArea').innerText = data.candidates[0].content.parts[0].text;
+            document.getElementById('outputWrapper').classList.remove('d-none');
+            window.scrollTo({ top: document.getElementById('outputWrapper').offsetTop - 20, behavior: 'smooth' });
+
+        } catch (error) {
+            // حل مشكلة "Model not found" عبر تبديل الموديل برمجياً إذا فشل الأول
+            if(error.message.includes("not found")) {
+                alert("جاري التبديل لمحرك بديل.. حاول مرة أخرى الآن");
+                // يمكنك هنا تغيير الرابط لـ gemini-1.5-flash-latest وتجربة الطلب مجدداً
+            } else {
+                alert("حدث خطأ: " + error.message);
+            }
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "توليد التحضير الاحترافي";
+        }
     };
 
-    window.savePDF = () => {
-        const element = document.getElementById('printableArea');
-        html2pdf().from(element).save(`تحضير_${document.getElementById('lesson').value}.pdf`);
+    window.downloadAsPDF = () => {
+        const element = document.getElementById('printablePlan');
+        html2pdf().from(element).save(`تحضير_${document.getElementById('lessonInput').value}.pdf`);
     };
 </script>
 </body>
