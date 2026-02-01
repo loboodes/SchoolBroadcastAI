@@ -24,13 +24,14 @@
         .btn-gold { background-color: var(--gold-accent); color: var(--primary-green); font-weight: bold; border: none; }
         .result-container { background: white; padding: 40px; border-radius: 15px; border: 1px solid #e0e0e0; margin-top: 30px; position: relative; }
         .pdf-header { border-bottom: 2px solid var(--gold-accent); padding-bottom: 15px; margin-bottom: 25px; }
+        #statusMsg { font-size: 0.9rem; margin-top: 10px; color: #666; }
     </style>
 </head>
 <body>
 
 <header class="main-header text-center">
     <h1 class="fw-bold">✨ مخطط الدروس الذكي Pro</h1>
-    <p class="lead">التحضير التربوي المبتكر لمتجر Lobodes</p>
+    <p class="lead text-white-50">التحضير التربوي المبتكر لمتجر Lobodes</p>
 </header>
 
 <div class="container mb-5">
@@ -47,7 +48,8 @@
                         <input type="text" id="lessonInput" class="form-control" placeholder="مثلاً: البراكين">
                     </div>
                     <div class="col-12 mt-4">
-                        <button onclick="generatePlan()" id="mainBtn" class="btn btn-gold btn-lg w-100 shadow">توليد التحضير الاحترافي</button>
+                        <button onclick="startSmartGeneration()" id="mainBtn" class="btn btn-gold btn-lg w-100 shadow">توليد التحضير الاحترافي</button>
+                        <div id="statusMsg" class="text-center"></div>
                     </div>
                 </div>
             </div>
@@ -70,50 +72,74 @@
 </div>
 
 <script type="module">
-    // مفتاحك الشخصي (API Key) من الصور التي أرفقتها
+    // مفتاحك
     const API_KEY = "AIzaSyA4JrK-4MnPur1nj9c5Se0gbQhyw_gSK18";
     
-    // الرابط المحدث باستخدام موديل gemini-pro لضمان الاستقرار
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`;
+    // قائمة الموديلات التي سنجربها بالترتيب
+    // نجرب النسخة المستقرة v1 أولاً، ثم v1beta
+    const MODELS_TO_TRY = [
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${API_KEY}`
+    ];
 
-    window.generatePlan = async () => {
+    window.startSmartGeneration = async () => {
         const subject = document.getElementById('subjectInput').value;
         const lesson = document.getElementById('lessonInput').value;
         const btn = document.getElementById('mainBtn');
+        const statusDiv = document.getElementById('statusMsg');
 
         if (!subject || !lesson) return alert("فضلاً أدخل البيانات كاملة");
 
         btn.disabled = true;
-        btn.innerText = "جاري الاتصال بالذكاء الاصطناعي...";
+        btn.innerText = "جاري الاتصال...";
+        
+        const promptText = `بصفتك خبيراً تربوياً، صمم تحضيراً لدرس (${lesson}) لمادة (${subject}) يشمل: الأهداف السلوكية، الاستراتيجيات، الوسائل التعليمية، وإجراءات الدرس.`;
 
-        const promptText = `بصفتك خبيراً تربوياً، صمم تحضيراً لدرس (${lesson}) لمادة (${subject}) يشمل: الأهداف السلوكية، الاستراتيجيات، والوسائل التعليمية.`;
+        // دالة المحاولة الذكية
+        let success = false;
+        for (const url of MODELS_TO_TRY) {
+            try {
+                // استخراج اسم الموديل للتوضيح فقط
+                const modelName = url.split('/models/')[1].split(':')[0];
+                statusDiv.innerText = `جاري المحاولة باستخدام المحرك: ${modelName}...`;
+                console.log(`Trying model: ${modelName}`);
 
-        try {
-            const response = await fetch(API_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
-            });
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+                });
 
-            const data = await response.json();
-            
-            if (!response.ok) throw new Error(data.error ? data.error.message : "خطأ غير معروف");
+                if (!response.ok) throw new Error("Not found");
 
-            // عرض النتيجة في الصفحة
-            document.getElementById('planTitle').innerText = `تحضير درس: ${lesson}`;
-            document.getElementById('contentArea').innerText = data.candidates[0].content.parts[0].text;
-            document.getElementById('outputWrapper').classList.remove('d-none');
-            
-            // سكرول تلقائي لأسفل لمشاهدة النتيجة
-            window.scrollTo({ top: document.getElementById('outputWrapper').offsetTop - 20, behavior: 'smooth' });
+                const data = await response.json();
+                const text = data.candidates[0].content.parts[0].text;
 
-        } catch (error) {
-            console.error(error);
-            alert("حدث خطأ تقني: " + error.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "توليد التحضير الاحترافي";
+                // نجاح!
+                document.getElementById('planTitle').innerText = `تحضير درس: ${lesson}`;
+                document.getElementById('contentArea').innerText = text;
+                document.getElementById('outputWrapper').classList.remove('d-none');
+                window.scrollTo({ top: document.getElementById('outputWrapper').offsetTop - 20, behavior: 'smooth' });
+                
+                success = true;
+                statusDiv.innerText = "";
+                break; // إيقاف المحاولات لأننا نجحنا
+
+            } catch (e) {
+                console.warn(`Failed with url: ${url}`);
+                continue; // الانتقال للموديل التالي
+            }
         }
+
+        if (!success) {
+            statusDiv.innerText = "فشلت جميع المحاولات. تأكد من إعدادات المفتاح في جوجل.";
+            alert("عذراً، لم نتمكن من العثور على محرك متاح لمفتاحك حالياً.");
+        }
+
+        btn.disabled = false;
+        btn.innerText = "توليد التحضير الاحترافي";
     };
 
     window.downloadAsPDF = () => {
@@ -123,3 +149,4 @@
 </script>
 </body>
 </html>
+
